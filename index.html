@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="ms" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KunciKu - Personal Password Manager</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="h-full font-sans antialiased bg-slate-900 text-slate-100 flex flex-col">
+
+    <!-- APPLIKASI CONTAINER -->
+    <div id="app" class="h-full flex flex-col">
+
+        <!-- UNLOCK / INITIAL SETUP SCREEN -->
+        <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-4">
+            <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl mb-3 border border-emerald-500/20">
+                        <i data-lucide="shield-lock" class="w-10 h-10"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white" id="auth-title">KunciKu Manager</h1>
+                    <p class="text-sm text-slate-400 mt-1" id="auth-subtitle">Masukkan Master PIN nombor anda untuk membuka vault.</p>
+                </div>
+
+                <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Master PIN (Nombor Sahaja)</label>
+                        <div class="relative">
+                            <input type="password" id="auth-password" required
+                                inputmode="numeric" pattern="[0-9]*" maxlength="12"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-slate-100 font-mono tracking-widest text-center text-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                                placeholder="••••••">
+                            <button type="button" onclick="togglePasswordVisibility('auth-password')" class="absolute right-3 top-3.5 text-slate-400 hover:text-slate-200">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="confirm-password-container" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Sahkan Master PIN</label>
+                        <input type="password" id="auth-confirm-password"
+                            inputmode="numeric" pattern="[0-9]*" maxlength="12"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-slate-100 font-mono tracking-widest text-center text-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                            placeholder="••••••">
+                    </div>
+
+                    <div id="auth-error" class="hidden p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-xs text-center"></div>
+
+                    <button type="submit" id="auth-submit-btn"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg transition duration-200 shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                        <i data-lucide="unlock" class="w-4 h-4"></i>
+                        <span id="auth-btn-text">Buka Vault</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD APP -->
+        <div id="main-app" class="hidden h-full flex flex-col md:flex-row overflow-hidden">
+            
+            <!-- SIDEBAR -->
+            <aside class="w-full md:w-64 bg-slate-950 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col justify-between shrink-0">
+                <div>
+                    <!-- Logo / Header -->
+                    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+                                <i data-lucide="key-round" class="w-5 h-5"></i>
+                            </div>
+                            <span class="font-bold text-slate-100 tracking-wide">KunciKu</span>
+                        </div>
+                        <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">v1.1</span>
+                    </div>
+
+                    <!-- Navigation Links -->
+                    <nav class="p-3 space-y-1">
+                        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-slate-800 text-slate-300">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                            <span>Dashboard</span>
+                        </button>
+                        <button onclick="switchTab('generator')" id="nav-generator" class="nav-btn w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-slate-800 text-slate-300">
+                            <i data-lucide="wand2" class="w-4 h-4"></i>
+                            <span>Password Generator</span>
+                        </button>
+                        <button onclick="switchTab('backup')" id="nav-backup" class="nav-btn w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-slate-800 text-slate-300">
+                            <i data-lucide="database" class="w-4 h-4"></i>
+                            <span>Backup & Restore</span>
+                        </button>
+                        <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-slate-800 text-slate-300">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                            <span>Tetapan</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Footer Sidebar / Lock Button -->
+                <div class="p-3 border-t border-slate-800">
+                    <button onclick="lockVault()" class="w-full flex items-center gap-2 px-3 py-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition text-sm">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                        <span>Lock Vault Now</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT AREA -->
+            <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-900">
+                
+                <!-- TOPBAR -->
+                <header class="h-16 border-b border-slate-800 bg-slate-950 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0">
+                    <div class="flex-1 max-w-md relative">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
+                        <input type="text" id="global-search" oninput="handleSearch(this.value)" placeholder="Cari perkhidmatan, email, kategori..."
+                            class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                    </div>
+
+                    <button onclick="openAccountModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition shrink-0">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Tambah Akaun</span>
+                    </button>
+                </header>
+
+                <!-- VIEW CONTAINERS -->
+                <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+
+                    <!-- TAB 1: DASHBOARD -->
+                    <section id="view-dashboard" class="tab-view space-y-6">
+                        <!-- STATS CARDS -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Total Accounts</p>
+                                    <h3 class="text-2xl font-bold text-white mt-1" id="stat-total">0</h3>
+                                </div>
+                                <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                                    <i data-lucide="layers" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Need Update</p>
+                                    <h3 class="text-2xl font-bold text-rose-400 mt-1" id="stat-expired">0</h3>
+                                </div>
+                                <div class="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
+                                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Expiring Soon</p>
+                                    <h3 class="text-2xl font-bold text-amber-400 mt-1" id="stat-expiring">0</h3>
+                                </div>
+                                <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                                    <i data-lucide="clock" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Active</p>
+                                    <h3 class="text-2xl font-bold text-emerald-400 mt-1" id="stat-active">0</h3>
+                                </div>
+                                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DUPLICATE WARNING BANNER -->
+                        <div id="duplicate-warning-banner" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+                            <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+                            <div class="text-sm">
+                                <h4 class="font-semibold text-amber-300">Security Warning: Duplicate Passwords Detected</h4>
+                                <p class="text-slate-300 text-xs mt-1" id="duplicate-warning-text"></p>
+                            </div>
+                        </div>
+
+                        <!-- LIST CONTAINER -->
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-lg font-bold text-white">Akaun & Kata Laluan</h2>
+                                <div class="flex items-center gap-2">
+                                    <select id="filter-status" onchange="renderAccountList()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+                                        <option value="ALL">Semua Status</option>
+                                        <option value="EXPIRED">Need Update</option>
+                                        <option value="EXPIRING">Expiring Soon</option>
+                                        <option value="ACTIVE">Active</option>
+                                    </select>
+
+                                    <select id="sort-by" onchange="renderAccountList()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none">
+                                        <option value="nextUpdate">Next Update (Awal Dulu)</option>
+                                        <option value="serviceName">Nama Perkhidmatan (A-Z)</option>
+                                        <option value="lastUpdated">Last Updated</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="accounts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <!-- Dynamic Rendered Cards -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 2: GENERATOR -->
+                    <section id="view-generator" class="tab-view hidden max-w-2xl mx-auto space-y-6">
+                        <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl space-y-6">
+                            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                                <i data-lucide="wand2" class="w-6 h-6 text-emerald-400"></i>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Password Generator</h2>
+                                    <p class="text-xs text-slate-400">Jana kata laluan rawak yang selamat secara tempatan.</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold text-slate-400 uppercase">Generated Password</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="gen-result" readonly class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 font-mono text-emerald-400 font-bold tracking-wider text-base focus:outline-none">
+                                    <button onclick="copyToClipboard(document.getElementById('gen-result').value)" class="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition" title="Copy">
+                                        <i data-lucide="copy" class="w-5 h-5"></i>
+                                    </button>
+                                    <button onclick="generatePassword()" class="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition" title="Regenerate">
+                                        <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-xs font-medium mb-1">
+                                        <span class="text-slate-300">Length</span>
+                                        <span class="text-emerald-400 font-mono font-bold" id="gen-length-val">20</span>
+                                    </div>
+                                    <input type="range" id="gen-length" min="8" max="64" value="20" oninput="document.getElementById('gen-length-val').innerText = this.value; generatePassword();" class="w-full accent-emerald-500">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3 text-xs">
+                                    <label class="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 cursor-pointer">
+                                        <input type="checkbox" id="gen-uppercase" checked onchange="generatePassword()" class="accent-emerald-500">
+                                        <span class="text-slate-200">Uppercase (A-Z)</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 cursor-pointer">
+                                        <input type="checkbox" id="gen-lowercase" checked onchange="generatePassword()" class="accent-emerald-500">
+                                        <span class="text-slate-200">Lowercase (a-z)</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 cursor-pointer">
+                                        <input type="checkbox" id="gen-numbers" checked onchange="generatePassword()" class="accent-emerald-500">
+                                        <span class="text-slate-200">Numbers (0-9)</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 cursor-pointer">
+                                        <input type="checkbox" id="gen-symbols" checked onchange="generatePassword()" class="accent-emerald-500">
+                                        <span class="text-slate-200">Symbols (!@#$%^&*)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 3: BACKUP & RESTORE -->
+                    <section id="view-backup" class="tab-view hidden max-w-2xl mx-auto space-y-6">
+                        <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl space-y-6">
+                            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                                <i data-lucide="database" class="w-6 h-6 text-emerald-400"></i>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Backup & Restore</h2>
+                                    <p class="text-xs text-slate-400">Eksport atau import vault ter-encrypt anda secara selamat.</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                                    <h3 class="text-sm font-semibold text-white">Export Encrypted Backup</h3>
+                                    <p class="text-xs text-slate-400">Muat turun salinan ter-encrypt vault anda. Fail ini memerlukan Master PIN anda untuk dibuka semula.</p>
+                                    <button onclick="exportBackup()" class="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+                                        <i data-lucide="download" class="w-4 h-4"></i> Export Encrypted File (.enc)
+                                    </button>
+                                </div>
+
+                                <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                                    <h3 class="text-sm font-semibold text-white">Import Backup</h3>
+                                    <p class="text-xs text-slate-400">Pulihkan data daripada fail backup `.enc`.</p>
+                                    <input type="file" id="import-file" accept=".enc" class="hidden" onchange="handleImportBackup(event)">
+                                    <button onclick="document.getElementById('import-file').click()" class="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition border border-slate-700">
+                                        <i data-lucide="upload" class="w-4 h-4"></i> Import File Backup
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 4: SETTINGS -->
+                    <section id="view-settings" class="tab-view hidden max-w-2xl mx-auto space-y-6">
+                        <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl space-y-6">
+                            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                                <i data-lucide="settings" class="w-6 h-6 text-emerald-400"></i>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Tetapan</h2>
+                                    <p class="text-xs text-slate-400">Konfigurasi pemasa auto-lock dan pengurusan vault.</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 text-xs">
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Auto Lock Timeout</label>
+                                    <select id="setting-autolock" onchange="saveSettings()" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none">
+                                        <option value="5">5 Minit Tidak Aktif</option>
+                                        <option value="10">10 Minit Tidak Aktif</option>
+                                        <option value="15">15 Minit Tidak Aktif</option>
+                                        <option value="30">30 Minit Tidak Aktif</option>
+                                    </select>
+                                </div>
+
+                                <div class="pt-4 border-t border-slate-800">
+                                    <h3 class="text-rose-400 font-bold mb-2">Zon Bahaya</h3>
+                                    <button onclick="purgeAllData()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-2 rounded-lg font-medium transition">
+                                        Padam Semua Data & Reset Vault
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT ACCOUNT -->
+    <div id="account-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="font-bold text-white text-base" id="modal-title">Tambah Akaun Baru</h3>
+                <button onclick="closeAccountModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="account-form" onsubmit="handleAccountFormSubmit(event)" class="p-4 overflow-y-auto space-y-4 text-xs">
+                <input type="hidden" id="acc-id">
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Nama Akaun / Service Name *</label>
+                    <input type="text" id="acc-service" required placeholder="Contoh: Google, Facebook, Maybank"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-300 mb-1">Website URL</label>
+                        <input type="url" id="acc-website" placeholder="https://..."
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-300 mb-1">Category</label>
+                        <select id="acc-category" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none">
+                            <option value="Email">Email</option>
+                            <option value="Social Media">Social Media</option>
+                            <option value="Banking">Banking</option>
+                            <option value="Government">Government</option>
+                            <option value="Work">Work</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Cloud">Cloud</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Email / Username *</label>
+                    <input type="text" id="acc-username" required placeholder="user@example.com"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-semibold text-slate-300">Password *</label>
+                        <button type="button" onclick="fillGeneratedPassword()" class="text-emerald-400 hover:underline text-[11px]">Jana Password</button>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="acc-password" required oninput="evaluatePasswordStrength(this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 pr-10 text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <button type="button" onclick="togglePasswordVisibility('acc-password')" class="absolute right-3 top-2.5 text-slate-400">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div id="strength-bar" class="h-full w-0 transition-all duration-300 bg-rose-500"></div>
+                        </div>
+                        <span id="strength-text" class="text-[10px] text-slate-400 mt-1 block">Password Strength Score</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Password Expiry Duration</label>
+                    <select id="acc-expiry" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none">
+                        <option value="30">30 Hari</option>
+                        <option value="60">60 Hari</option>
+                        <option value="90" selected>90 Hari (Default)</option>
+                        <option value="180">180 Hari</option>
+                        <option value="365">365 Hari</option>
+                        <option value="0">Never (Tiada Expiry)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Notes</label>
+                    <textarea id="acc-notes" rows="2" placeholder="Maklumat tambahan..."
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
+                </div>
+
+                <div id="history-section" class="hidden border-t border-slate-800 pt-3 space-y-2">
+                    <label class="font-semibold text-slate-300 block">Password History (Encrypted)</label>
+                    <div id="history-list" class="space-y-1 max-h-24 overflow-y-auto text-[11px] text-slate-400"></div>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2 border-t border-slate-800">
+                    <button type="button" onclick="closeAccountModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium shadow-lg shadow-emerald-600/20">Simpan Akaun</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm">
+        <i data-lucide="info" id="toast-icon" class="w-5 h-5 text-emerald-400"></i>
+        <span id="toast-message">Mesej notifikasi...</span>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           GLOBAL STATES & CRYPTO CONFIG
+           ========================================================================== */
+        let masterKey = null;
+        let db = null;
+        let autoLockTimer = null;
+        let lastActivity = Date.now();
+        let appSettings = { autoLockMinutes: 5, defaultExpiry: 90 };
+
+        const DB_NAME = 'KunciKuDB';
+        const DB_VERSION = 1;
+
+        /* ==========================================================================
+           INDEXEDDB ENGINE
+           ========================================================================== */
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('vault_meta')) {
+                        db.createObjectStore('vault_meta', { keyPath: 'key' });
+                    }
+                    if (!db.objectStoreNames.contains('vault_items')) {
+                        db.createObjectStore('vault_items', { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function dbGet(storeName, key) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function dbPut(storeName, value) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const req = store.put(value);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function dbGetAll(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function dbDelete(storeName, key) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const req = store.delete(key);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        /* ==========================================================================
+           WEB CRYPTO API CORE (PBKDF2 600,000 Iterations & AES-GCM)
+           ========================================================================== */
+        async function deriveKey(pinString, salt) {
+            const encoder = new TextEncoder();
+            const passwordBuffer = encoder.encode(pinString);
+
+            const baseKey = await crypto.subtle.importKey(
+                'raw', passwordBuffer, { name: 'PBKDF2' }, false, ['deriveKey']
+            );
+
+            // 600,000 iterations to secure short numeric PINs against brute-force
+            return await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 600000,
+                    hash: 'SHA-256'
+                },
+                baseKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptData(dataObject, key) {
+            const encoder = new TextEncoder();
+            const plaintext = encoder.encode(JSON.stringify(dataObject));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            const ciphertext = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                plaintext
+            );
+
+            return {
+                iv: Array.from(iv),
+                data: Array.from(new Uint8Array(ciphertext))
+            };
+        }
+
+        async function decryptData(encryptedObj, key) {
+            const iv = new Uint8Array(encryptedObj.iv);
+            const data = new Uint8Array(encryptedObj.data);
+
+            const decryptedBuffer = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            );
+
+            const decoder = new TextDecoder();
+            return JSON.parse(decoder.decode(decryptedBuffer));
+        }
+
+        /* ==========================================================================
+           AUTH & INITIAL SETUP FLOW
+           ========================================================================== */
+        async function checkInitialSetup() {
+            await initDB();
+            const meta = await dbGet('vault_meta', 'config');
+
+            if (!meta) {
+                document.getElementById('auth-title').innerText = "Cipta Master PIN";
+                document.getElementById('auth-subtitle').innerText = "Sila cipta Master PIN (nombor sahaja, min 6 digit) untuk melindungi vault anda.";
+                document.getElementById('confirm-password-container').classList.remove('hidden');
+                document.getElementById('auth-btn-text').innerText = "Cipta PIN & Buka Vault";
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const pin = document.getElementById('auth-password').value;
+            const confirmPin = document.getElementById('auth-confirm-password').value;
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.classList.add('hidden');
+
+            // Pengesahan Nombor
+            if (!/^\d+$/.test(pin)) {
+                showAuthError("Master PIN hanya boleh mengandungi nombor (0-9) sahaja!");
+                return;
+            }
+
+            if (pin.length < 6) {
+                showAuthError("Master PIN mestilah sekurang-kurangnya 6 nombor!");
+                return;
+            }
+
+            try {
+                const meta = await dbGet('vault_meta', 'config');
+
+                if (!meta) {
+                    if (pin !== confirmPin) {
+                        showAuthError("Master PIN dan Sahkan PIN tidak sepadan!");
+                        return;
+                    }
+
+                    const salt = crypto.getRandomValues(new Uint8Array(16));
+                    masterKey = await deriveKey(pin, salt);
+
+                    const authCheck = await encryptData({ verified: true, created: new Date().toISOString() }, masterKey);
+
+                    await dbPut('vault_meta', {
+                        key: 'config',
+                        salt: Array.from(salt),
+                        authCheck: authCheck,
+                        settings: appSettings
+                    });
+
+                    unlockApp();
+                } else {
+                    const salt = new Uint8Array(meta.salt);
+                    const derived = await deriveKey(pin, salt);
+
+                    try {
+                        const verifiedPayload = await decryptData(meta.authCheck, derived);
+                        if (verifiedPayload && verifiedPayload.verified) {
+                            masterKey = derived;
+                            if (meta.settings) appSettings = meta.settings;
+                            unlockApp();
+                        } else {
+                            showAuthError("Master PIN salah!");
+                        }
+                    } catch (err) {
+                        showAuthError("Master PIN salah!");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                showAuthError("Berlaku ralat sistem keselamatan.");
+            }
+        }
+
+        function showAuthError(msg) {
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.innerText = msg;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function unlockApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('auth-password').value = '';
+            document.getElementById('auth-confirm-password').value = '';
+            
+            startAutoLockTimer();
+            generatePassword();
+            renderAccountList();
+            showToast("Vault Berjaya Dibuka!", "check-circle");
+        }
+
+        function lockVault() {
+            masterKey = null;
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            if (autoLockTimer) clearInterval(autoLockTimer);
+            showToast("Vault Di-Lock Secara Selamat.", "lock");
+        }
+
+        /* ==========================================================================
+           AUTO LOCK & INACTIVITY TIMER
+           ========================================================================== */
+        function startAutoLockTimer() {
+            if (autoLockTimer) clearInterval(autoLockTimer);
+            lastActivity = Date.now();
+
+            ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+                window.addEventListener(evt, () => lastActivity = Date.now());
+            });
+
+            autoLockTimer = setInterval(() => {
+                const timeoutMs = (appSettings.autoLockMinutes || 5) * 60 * 1000;
+                if (Date.now() - lastActivity >= timeoutMs && masterKey !== null) {
+                    lockVault();
+                }
+            }, 10000);
+        }
+
+        /* ==========================================================================
+           AUTOMATIC DATE CALCULATOR & STATUS SYSTEM
+           ========================================================================== */
+        function formatDateLocal(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function calculateNextUpdate(lastUpdatedStr, expiryDays) {
+            if (parseInt(expiryDays) === 0) return null;
+            const date = new Date(lastUpdatedStr);
+            date.setDate(date.getDate() + parseInt(expiryDays));
+            return date.toISOString().split('T')[0];
+        }
+
+        function evaluateStatus(nextUpdateStr) {
+            if (!nextUpdateStr) return { code: 'ACTIVE', text: 'ACTIVE (Tiada Expiry)', color: 'emerald' };
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const target = new Date(nextUpdateStr);
+            target.setHours(0,0,0,0);
+
+            const diffTime = target - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return { code: 'EXPIRED', text: 'NEED UPDATE (Overdue)', color: 'rose', days: Math.abs(diffDays) };
+            } else if (diffDays <= 14) {
+                return { code: 'EXPIRING', text: `EXPIRING (${diffDays} Hari)`, color: 'amber', days: diffDays };
+            } else {
+                return { code: 'ACTIVE', text: `ACTIVE (${diffDays} Hari Baki)`, color: 'emerald', days: diffDays };
+            }
+        }
+
+        /* ==========================================================================
+           ACCOUNT MANAGEMENT (CRUD & RENDER)
+           ========================================================================== */
+        async function renderAccountList() {
+            const rawItems = await dbGetAll('vault_items');
+            const grid = document.getElementById('accounts-grid');
+            grid.innerHTML = '';
+
+            let totalCount = 0;
+            let expiredCount = 0;
+            let expiringCount = 0;
+            let activeCount = 0;
+
+            const decryptedItems = [];
+            const plainPasswordsMap = {};
+
+            for (const item of rawItems) {
+                try {
+                    const decryptedPayload = await decryptData(item.encryptedPayload, masterKey);
+                    const statusObj = evaluateStatus(item.nextUpdate);
+
+                    totalCount++;
+                    if (statusObj.code === 'EXPIRED') expiredCount++;
+                    if (statusObj.code === 'EXPIRING') expiringCount++;
+                    if (statusObj.code === 'ACTIVE') activeCount++;
+
+                    const p = decryptedPayload.password;
+                    plainPasswordsMap[p] = (plainPasswordsMap[p] || 0) + 1;
+
+                    decryptedItems.push({
+                        ...item,
+                        payload: decryptedPayload,
+                        statusObj: statusObj
+                    });
+                } catch (e) {
+                    console.error("Gagal decrypt item", item.id);
+                }
+            }
+
+            document.getElementById('stat-total').innerText = totalCount;
+            document.getElementById('stat-expired').innerText = expiredCount;
+            document.getElementById('stat-expiring').innerText = expiringCount;
+            document.getElementById('stat-active').innerText = activeCount;
+
+            const duplicatesUsed = Object.values(plainPasswordsMap).filter(c => c > 1).length;
+            const dupBanner = document.getElementById('duplicate-warning-banner');
+            if (duplicatesUsed > 0) {
+                dupBanner.classList.remove('hidden');
+                document.getElementById('duplicate-warning-text').innerText = `Terdapat password yang sama digunakan pada berbilang akaun. Disyorkan menggunakan password unik.`;
+            } else {
+                dupBanner.classList.add('hidden');
+            }
+
+            const statusFilter = document.getElementById('filter-status').value;
+            const sortBy = document.getElementById('sort-by').value;
+            const searchVal = document.getElementById('global-search').value.toLowerCase();
+
+            let filtered = decryptedItems.filter(i => {
+                const matchFilter = statusFilter === 'ALL' || i.statusObj.code === statusFilter;
+                const matchSearch = i.serviceName.toLowerCase().includes(searchVal) ||
+                                    i.username.toLowerCase().includes(searchVal) ||
+                                    i.category.toLowerCase().includes(searchVal);
+                return matchFilter && matchSearch;
+            });
+
+            filtered.sort((a, b) => {
+                if (sortBy === 'nextUpdate') {
+                    if (!a.nextUpdate) return 1;
+                    if (!b.nextUpdate) return -1;
+                    return new Date(a.nextUpdate) - new Date(b.nextUpdate);
+                }
+                if (sortBy === 'serviceName') return a.serviceName.localeCompare(b.serviceName);
+                if (sortBy === 'lastUpdated') return new Date(b.lastUpdated) - new Date(a.lastUpdated);
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500">
+                        <i data-lucide="shield-off" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                        <p>Tiada rekod akaun ditemui.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 flex flex-col justify-between hover:border-slate-700 transition";
+                
+                const badgeColor = item.statusObj.color === 'emerald' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                 item.statusObj.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <h3 class="font-bold text-white text-base">${item.serviceName}</h3>
+                                <span class="text-[10px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded">${item.category}</span>
+                            </div>
+                            <span class="text-[10px] px-2 py-1 rounded-full font-semibold border ${badgeColor}">
+                                ${item.statusObj.text}
+                            </span>
+                        </div>
+
+                        <div class="space-y-1 text-xs text-slate-300">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Username:</span>
+                                <span class="font-mono">${item.username}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Password:</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="font-mono text-emerald-400" id="pwd-text-${item.id}">••••••••••••</span>
+                                    <button onclick="toggleCardPassword('${item.id}', '${encodeURIComponent(item.payload.password)}')" class="text-slate-500 hover:text-slate-300 p-1">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] bg-slate-900/50 p-2 rounded-lg space-y-0.5 text-slate-400">
+                            <div class="flex justify-between">
+                                <span>Last Updated:</span>
+                                <span>${formatDateLocal(item.lastUpdated)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Next Update:</span>
+                                <span>${formatDateLocal(item.nextUpdate)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-1 text-xs">
+                        <div class="flex items-center gap-1">
+                            <button onclick="copyToClipboard('${item.username}')" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded" title="Copy Username">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="copyToClipboard('${encodeURIComponent(item.payload.password)}', true)" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded" title="Copy Password">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="quickUpdatePassword('${item.id}')" class="p-1.5 hover:bg-slate-900 text-emerald-400 hover:text-emerald-300 rounded" title="Update Password Sekali Klik">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="openAccountModal('${item.id}')" class="p-1.5 hover:bg-slate-900 text-slate-400 hover:text-white rounded" title="Edit">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteAccount('${item.id}')" class="p-1.5 hover:bg-slate-900 text-rose-400 hover:text-rose-300 rounded" title="Padam">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function toggleCardPassword(id, encodedPassword) {
+            const el = document.getElementById(`pwd-text-${id}`);
+            const realPassword = decodeURIComponent(encodedPassword);
+            if (el.innerText === '••••••••••••') {
+                el.innerText = realPassword;
+            } else {
+                el.innerText = '••••••••••••';
+            }
+        }
+
+        /* ==========================================================================
+           ACCOUNT FORM & SAVE FLOW
+           ========================================================================== */
+        async function openAccountModal(id = null) {
+            const modal = document.getElementById('account-modal');
+            const form = document.getElementById('account-form');
+            form.reset();
+            document.getElementById('acc-id').value = '';
+            document.getElementById('history-section').classList.add('hidden');
+
+            if (id) {
+                document.getElementById('modal-title').innerText = "Edit Akaun";
+                const item = await dbGet('vault_items', id);
+                const payload = await decryptData(item.encryptedPayload, masterKey);
+
+                document.getElementById('acc-id').value = item.id;
+                document.getElementById('acc-service').value = item.serviceName;
+                document.getElementById('acc-website').value = item.website || '';
+                document.getElementById('acc-category').value = item.category;
+                document.getElementById('acc-username').value = item.username;
+                document.getElementById('acc-password').value = payload.password;
+                document.getElementById('acc-expiry').value = item.expiryDays;
+                document.getElementById('acc-notes').value = payload.notes || '';
+
+                if (payload.history && payload.history.length > 0) {
+                    const hList = document.getElementById('history-list');
+                    hList.innerHTML = '';
+                    payload.history.forEach(h => {
+                        const div = document.createElement('div');
+                        div.className = "flex justify-between bg-slate-950 p-1.5 rounded border border-slate-800";
+                        div.innerHTML = `<span>${formatDateLocal(h.date)}</span> <span class="font-mono text-slate-500">••••••••</span>`;
+                        hList.appendChild(div);
+                    });
+                    document.getElementById('history-section').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('modal-title').innerText = "Tambah Akaun Baru";
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAccountModal() {
+            document.getElementById('account-modal').classList.add('hidden');
+        }
+
+        async function handleAccountFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('acc-id').value || crypto.randomUUID();
+            const serviceName = document.getElementById('acc-service').value;
+            const website = document.getElementById('acc-website').value;
+            const category = document.getElementById('acc-category').value;
+            const username = document.getElementById('acc-username').value;
+            const password = document.getElementById('acc-password').value;
+            const expiryDays = parseInt(document.getElementById('acc-expiry').value);
+            const notes = document.getElementById('acc-notes').value;
+
+            const currentDate = new Date().toISOString().split('T')[0];
+            let history = [];
+
+            const existingItem = await dbGet('vault_items', id);
+            if (existingItem) {
+                const oldPayload = await decryptData(existingItem.encryptedPayload, masterKey);
+                history = oldPayload.history || [];
+                if (oldPayload.password !== password) {
+                    history.unshift({ date: currentDate, password: oldPayload.password });
+                }
+            }
+
+            const nextUpdate = calculateNextUpdate(currentDate, expiryDays);
+            const payloadToEncrypt = { password, notes, history };
+            const encryptedPayload = await encryptData(payloadToEncrypt, masterKey);
+
+            const record = {
+                id,
+                serviceName,
+                website,
+                category,
+                username,
+                expiryDays,
+                createdAt: existingItem ? existingItem.createdAt : currentDate,
+                lastUpdated: currentDate,
+                nextUpdate,
+                encryptedPayload
+            };
+
+            await dbPut('vault_items', record);
+            closeAccountModal();
+            renderAccountList();
+            showToast("Akaun berjaya disimpan!", "check");
+        }
+
+        async function quickUpdatePassword(id) {
+            const newPwd = generateRandomPassword(20, true, true, true, true);
+            const item = await dbGet('vault_items', id);
+            const payload = await decryptData(item.encryptedPayload, masterKey);
+
+            const currentDate = new Date().toISOString().split('T')[0];
+            const history = payload.history || [];
+            history.unshift({ date: currentDate, password: payload.password });
+
+            const nextUpdate = calculateNextUpdate(currentDate, item.expiryDays);
+            const newPayload = { password: newPwd, notes: payload.notes, history };
+            const encryptedPayload = await encryptData(newPayload, masterKey);
+
+            item.lastUpdated = currentDate;
+            item.nextUpdate = nextUpdate;
+            item.encryptedPayload = encryptedPayload;
+
+            await dbPut('vault_items', item);
+            renderAccountList();
+            showToast("Password dikemaskini secara automatik!", "refresh-cw");
+        }
+
+        async function deleteAccount(id) {
+            if (confirm("Adakah anda pasti mahu memadam akaun ini? Tindakan ini tidak boleh dibatalkan.")) {
+                await dbDelete('vault_items', id);
+                renderAccountList();
+                showToast("Akaun telah dipadam.", "trash-2");
+            }
+        }
+
+        /* ==========================================================================
+           PASSWORD GENERATOR
+           ========================================================================== */
+        function generatePassword() {
+            const length = parseInt(document.getElementById('gen-length').value);
+            const useUpper = document.getElementById('gen-uppercase').checked;
+            const useLower = document.getElementById('gen-lowercase').checked;
+            const useNum = document.getElementById('gen-numbers').checked;
+            const useSym = document.getElementById('gen-symbols').checked;
+
+            const pwd = generateRandomPassword(length, useUpper, useLower, useNum, useSym);
+            document.getElementById('gen-result').value = pwd;
+        }
+
+        function generateRandomPassword(length, upper, lower, num, sym) {
+            let charset = "";
+            if (upper) charset += "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            if (lower) charset += "abcdefghijkmnopqrstuvwxyz";
+            if (num) charset += "23456789";
+            if (sym) charset += "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+            if (!charset) charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+            let result = "";
+            const array = new Uint32Array(length);
+            crypto.getRandomValues(array);
+            for (let i = 0; i < length; i++) {
+                result += charset[array[i] % charset.length];
+            }
+            return result;
+        }
+
+        function fillGeneratedPassword() {
+            const pwd = generateRandomPassword(20, true, true, true, true);
+            document.getElementById('acc-password').value = pwd;
+            evaluatePasswordStrength(pwd);
+        }
+
+        /* ==========================================================================
+           PASSWORD STRENGTH EVALUATOR
+           ========================================================================== */
+        function evaluatePasswordStrength(password) {
+            let score = 0;
+            if (!password) score = 0;
+            else {
+                if (password.length >= 8) score += 20;
+                if (password.length >= 12) score += 20;
+                if (/[A-Z]/.test(password)) score += 15;
+                if (/[a-z]/.test(password)) score += 15;
+                if (/[0-9]/.test(password)) score += 15;
+                if (/[^A-Za-z0-9]/.test(password)) score += 15;
+            }
+
+            const bar = document.getElementById('strength-bar');
+            const text = document.getElementById('strength-text');
+            bar.style.width = `${score}%`;
+
+            if (score < 40) {
+                bar.className = "h-full transition-all duration-300 bg-rose-500";
+                text.innerText = `Kekuatan: Lemah (${score}%)`;
+            } else if (score < 75) {
+                bar.className = "h-full transition-all duration-300 bg-amber-500";
+                text.innerText = `Kekuatan: Sederhana (${score}%)`;
+            } else {
+                bar.className = "h-full transition-all duration-300 bg-emerald-500";
+                text.innerText = `Kekuatan: Sangat Kuat (${score}%)`;
+            }
+        }
+
+        /* ==========================================================================
+           BACKUP & RESTORE ENGINE
+           ========================================================================== */
+        async function exportBackup() {
+            const rawItems = await dbGetAll('vault_items');
+            const meta = await dbGet('vault_meta', 'config');
+
+            const backupObject = {
+                timestamp: new Date().toISOString(),
+                version: 1,
+                meta: meta,
+                items: rawItems
+            };
+
+            const blob = new Blob([JSON.stringify(backupObject, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kunciku-backup-${new Date().toISOString().split('T')[0]}.enc`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Fail backup berjaya di-export!", "download");
+        }
+
+        async function handleImportBackup(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const importedData = JSON.parse(evt.target.result);
+                    if (importedData && importedData.items) {
+                        for (const item of importedData.items) {
+                            await dbPut('vault_items', item);
+                        }
+                        renderAccountList();
+                        showToast("Backup berjaya di-import!", "upload");
+                    } else {
+                        alert("Format fail backup tidak sah.");
+                    }
+                } catch (err) {
+                    alert("Gagal membaca fail backup.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /* ==========================================================================
+           SETTINGS & UTILITIES
+           ========================================================================== */
+        async function saveSettings() {
+            appSettings.autoLockMinutes = parseInt(document.getElementById('setting-autolock').value);
+
+            const meta = await dbGet('vault_meta', 'config');
+            meta.settings = appSettings;
+            await dbPut('vault_meta', meta);
+            showToast("Tetapan disimpan.", "check");
+        }
+
+        async function purgeAllData() {
+            if (confirm("AMARAN: Ini akan memadam SEMUA data dan menetapkan semula vault. Adakah anda pasti?")) {
+                await dbDelete('vault_meta', 'config');
+                const items = await dbGetAll('vault_items');
+                for (const item of items) {
+                    await dbDelete('vault_items', item.id);
+                }
+                location.reload();
+            }
+        }
+
+        function copyToClipboard(text, isEncoded = false) {
+            const val = isEncoded ? decodeURIComponent(text) : text;
+            navigator.clipboard.writeText(val).then(() => {
+                showToast("Disalin ke papan keratan! Auto-clear dalam 30s.");
+                setTimeout(() => {
+                    navigator.clipboard.writeText("");
+                }, 30000);
+            });
+        }
+
+        function togglePasswordVisibility(fieldId) {
+            const input = document.getElementById(fieldId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active', 'bg-slate-800', 'text-white'));
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) activeBtn.classList.add('active', 'bg-slate-800', 'text-white');
+        }
+
+        function handleSearch(val) {
+            renderAccountList();
+        }
+
+        function showToast(msg, icon = "info") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3500);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkInitialSetup();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
